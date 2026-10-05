@@ -14,7 +14,7 @@ import CrashReporter
 /// PLCrashReporter is vendored as a static xcframework at
 /// `Frameworks/CrashReporter.xcframework/` and shipped under the MIT
 /// license preserved in `THIRD_PARTY_NOTICES.txt`.
-final class NativeCrashReporter: @unchecked Sendable {
+final class NativeCrashReporter: PendingCrashReportSource, @unchecked Sendable {
 
     static let shared = NativeCrashReporter()
 
@@ -49,33 +49,32 @@ final class NativeCrashReporter: @unchecked Sendable {
     }
 
     /// Check for a pending crash report written by a previous session and
-    /// hand it back as a `AbrovaTraceError` ready to send.
+    /// hand it back ready to send.
+    ///
+    /// The report stays on disk: call `purgePendingCrashReport()` once it is
+    /// delivered or stored elsewhere. Only a report that cannot be read is
+    /// removed here, because it could never be sent.
+    ///
+    /// Reads and parses a file; not for use on the main thread.
     ///
     /// Returns `nil` if there is no pending report.
     func loadPendingCrashReport(
         environment: String,
         releaseVersion: String?,
         userAgent: String?
-    ) -> AbrovaTraceError? {
+    ) -> PendingCrashReport? {
         #if canImport(CrashReporter)
-        let config = PLCrashReporterConfig(
-            signalHandlerType: .BSD,
-            symbolicationStrategy: []
-        )
-        guard let reporter = PLCrashReporter(configuration: config) else { return nil }
+        guard let reporter = makeReporter() else { return nil }
         guard reporter.hasPendingCrashReport() else { return nil }
 
         do {
             let data = try reporter.loadPendingCrashReportDataAndReturnError()
-            let report = try PLCrashReport(data: data)
-            let error = mapReportToError(
-                report,
+            return try pendingReport(
+                from: data,
                 environment: environment,
                 releaseVersion: releaseVersion,
                 userAgent: userAgent
             )
-            try? reporter.purgePendingCrashReportAndReturnError()
-            return error
         } catch {
             logError("Failed to load pending crash report: \(error.localizedDescription)")
             try? reporter.purgePendingCrashReportAndReturnError()
@@ -86,9 +85,58 @@ final class NativeCrashReporter: @unchecked Sendable {
         #endif
     }
 
+    /// Delete the pending crash report of a previous session.
+    func purgePendingCrashReport() {
+        #if canImport(CrashReporter)
+        guard let reporter = makeReporter() else { return }
+        do {
+            try reporter.purgePendingCrashReportAndReturnError()
+        } catch {
+            logError("Failed to remove pending crash report: \(error.localizedDescription)")
+        }
+        #endif
+    }
+
     #if canImport(CrashReporter)
+    private func makeReporter() -> PLCrashReporter? {
+        let config = PLCrashReporterConfig(
+            signalHandlerType: .BSD,
+            symbolicationStrategy: []
+        )
+        return PLCrashReporter(configuration: config)
+    }
+    #endif
+
+    #if canImport(CrashReporter)
+    /// Parse a raw report and map it to the event to send. The same data
+    /// gives the same event id every time.
+    func pendingReport(
+        from data: Data,
+        environment: String,
+        releaseVersion: String?,
+        userAgent: String?
+    ) throws -> PendingCrashReport {
+        let report = try PLCrashReport(data: data)
+        let error = mapReportToError(
+            report,
+            eventId: PendingCrashReport.eventId(reportUUID: Self.reportUUID(of: report), data: data),
+            environment: environment,
+            releaseVersion: releaseVersion,
+            userAgent: userAgent
+        )
+        return PendingCrashReport(id: PendingCrashReport.identifier(for: data), error: error)
+    }
+
+    /// The id PLCrashReporter wrote into the report at crash time, or `nil`
+    /// for a report without one (report format before 1.2).
+    static func reportUUID(of report: PLCrashReport) -> String? {
+        guard let uuidRef = report.uuidRef else { return nil }
+        return CFUUIDCreateString(nil, uuidRef) as String?
+    }
+
     private func mapReportToError(
         _ report: PLCrashReport,
+        eventId: String,
         environment: String,
         releaseVersion: String?,
         userAgent: String?
@@ -135,7 +183,8 @@ final class NativeCrashReporter: @unchecked Sendable {
             timestamp: Int64((report.systemInfo?.timestamp?.timeIntervalSince1970 ?? Date().timeIntervalSince1970) * 1000),
             userAgent: userAgent,
             extra: extra,
-            level: MessageLevel.fatal.rawValue
+            level: MessageLevel.fatal.rawValue,
+            eventId: eventId
         )
     }
 
