@@ -6,7 +6,12 @@ struct AbrovaTraceExampleApp: App {
 
     init() {
         // Initialize AbrovaTrace SDK
-        let config = AbrovaTraceConfigBuilder(apiKey: "ab_live_your_api_key")
+        // Optional launch values (Xcode scheme → Arguments → Environment, or `simctl launch`):
+        // ABROVA_TRACE_API_KEY and ABROVA_TRACE_API_URL (another Trace server, for example one you run yourself).
+        let env = ProcessInfo.processInfo.environment
+        var builder = AbrovaTraceConfigBuilder(apiKey: env["ABROVA_TRACE_API_KEY"] ?? "ab_live_your_api_key")
+        if let url = env["ABROVA_TRACE_API_URL"], !url.isEmpty { builder = builder.apiUrl(url) }
+        let config = builder
             .environment("development")
             .release(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String)
             .debug(true)
