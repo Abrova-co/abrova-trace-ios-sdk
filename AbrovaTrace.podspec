@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'AbrovaTrace'
-  s.version          = '0.2.4'
+  s.version          = '0.2.5'
   s.summary          = 'Error tracking, logging, and performance monitoring SDK for iOS'
   s.description      = <<-DESC
     AbrovaTrace is a comprehensive error tracking, logging, and performance monitoring SDK for iOS applications.

@@ -11,18 +11,18 @@ Error tracking, crash reporting, logging and performance monitoring for iOS apps
 
 ### Swift Package Manager
 
-In Xcode, choose **File > Add Package Dependencies**, enter `https://center.abrova.ir/abrova/abrova-trace-ios-sdk.git` and select version `0.2.4` or later. In a `Package.swift` file:
+In Xcode, choose **File > Add Package Dependencies**, enter `https://center.abrova.ir/abrova/abrova-trace-ios-sdk.git` and select version `0.2.5` or later. In a `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://center.abrova.ir/abrova/abrova-trace-ios-sdk.git", from: "0.2.4")
+    .package(url: "https://center.abrova.ir/abrova/abrova-trace-ios-sdk.git", from: "0.2.5")
 ]
 ```
 
 ### CocoaPods
 
 ```ruby
-pod 'AbrovaTrace', :git => 'https://center.abrova.ir/abrova/abrova-trace-ios-sdk.git', :tag => '0.2.4'
+pod 'AbrovaTrace', :git => 'https://center.abrova.ir/abrova/abrova-trace-ios-sdk.git', :tag => '0.2.5'
 ```
 
 ## Quick start

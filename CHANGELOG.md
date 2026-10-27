@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.5 - 2026-10-28
+
+- One hang is one ANR report. Before, a report was sent every few seconds for as long as the main thread stayed blocked.
+
 ## 0.2.4 - 2026-10-06
 
 - A report that is sent again is counted once: every error carries an `event_id` that stays the same on each attempt.
